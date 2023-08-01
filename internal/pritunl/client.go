@@ -28,6 +28,7 @@ type Client interface {
 	UpdateServer(id string, server *Server) error
 	DeleteServer(id string) error
 
+	GetHosts() ([]Host, error)
 	GetHostsByServer(serverId string) ([]Host, error)
 	AttachHostToServer(hostId, serverId string) error
 	DetachHostFromServer(hostId, serverId string) error
@@ -317,6 +318,31 @@ func (c client) DetachHostFromServer(hostId, serverId string) error {
 	}
 
 	return nil
+}
+
+func (c client) GetHosts() ([]Host, error) {
+	url := fmt.Sprintf("/host")
+	req, err := http.NewRequest("GET", url, nil)
+
+	resp, err := c.httpClient.Do(req)
+	if err != nil {
+		return nil, fmt.Errorf("GetHosts: Error on HTTP request: %s", err)
+	}
+	defer resp.Body.Close()
+
+	body, _ := io.ReadAll(resp.Body)
+	if resp.StatusCode != 200 {
+		return nil, fmt.Errorf("Non-200 response on getting the hosts\nbody=%s", body)
+	}
+
+	var hosts []Host
+
+	err = json.Unmarshal(body, &hosts)
+	if err != nil {
+		return nil, fmt.Errorf("GetHosts: %s: %+v, body=%s", err, hosts, body)
+	}
+
+	return hosts, nil
 }
 
 func (c client) GetHostsByServer(serverId string) ([]Host, error) {
