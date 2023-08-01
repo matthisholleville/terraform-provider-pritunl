@@ -3,6 +3,7 @@ package provider
 import (
 	"context"
 	"errors"
+	"regexp"
 
 	"github.com/hashicorp/terraform-plugin-sdk/helper/validation"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/diag"
@@ -45,6 +46,9 @@ func resourceRoute() *schema.Resource {
 		ReadContext:   resourceReadRoute,
 		UpdateContext: resourceUpdateRoute,
 		DeleteContext: resourceDeleteRoute,
+		Importer: &schema.ResourceImporter{
+			StateContext: resourceImportRoute,
+		},
 	}
 }
 
@@ -79,11 +83,47 @@ func resourceCreateRoute(ctx context.Context, d *schema.ResourceData, meta inter
 	return resourceReadRoute(ctx, d, meta)
 }
 
+func resourceImportRoute(ctx context.Context, d *schema.ResourceData, meta interface{}) ([]*schema.ResourceData, error) {
+	apiClient := meta.(pritunl.Client)
+
+	re := regexp.MustCompile(`server/([a-z0-9]+)/route/([a-z0-9]+)`)
+	matches := re.FindAllStringSubmatch(d.Id(), -1)
+
+	if matches == nil {
+		return nil, errors.New("Incorrect format. Must be server/(?P<server_id>[^/]+)/route/(?P<route_id>[^/]+)")
+	}
+
+	var serverId string
+	var routeId string
+
+	for _, match := range matches {
+		serverId = match[1]
+		routeId = match[2]
+	}
+
+	routes, err := apiClient.GetRoutesByServer(serverId)
+	if err != nil {
+		return nil, err
+	}
+	for _, route := range routes {
+		if route.GetID() == routeId {
+			d.Set("server_id", serverId)
+			d.Set("network", route.Network)
+			d.Set("comment", route.Comment)
+			d.Set("nat", route.Nat)
+			d.SetId(routeId)
+
+			return []*schema.ResourceData{d}, nil
+		}
+	}
+
+	return nil, errors.New("Route not found.")
+}
+
 func resourceReadRoute(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
 	apiClient := meta.(pritunl.Client)
 
 	serverId := d.Get("server_id").(string)
-
 	routes, err := apiClient.GetRoutesByServer(serverId)
 	if err != nil {
 		return diag.FromErr(err)

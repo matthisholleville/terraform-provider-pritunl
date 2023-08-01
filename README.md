@@ -142,8 +142,8 @@ resource "pritunl_route" "example" {
 
 Execute the shell command:
 ```sh
-terraform import pritunl_route.example ${ROUTE_ID}
-terraform import pritunl_route.example 60cd0bfa7723cf3c911468a8
+terraform import pritunl_route.example server/${SERVER_ID}/route/${ROUTE_ID}
+terraform import pritunl_route.example server/631898aacc02a7b9c17c4d4c/route/33342e32332e34332e34322f3332
 ```
 
 ## License
