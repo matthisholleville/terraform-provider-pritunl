@@ -3,13 +3,18 @@ package provider
 import (
 	"context"
 	"errors"
+	"fmt"
 	"regexp"
+	"sync"
 
 	"github.com/hashicorp/terraform-plugin-sdk/helper/validation"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/diag"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
 	"github.com/matthisholleville/terraform-pritunl-provider/internal/pritunl"
 )
+
+var serverLocks = map[string]*sync.Mutex{}
+var serverLocksMutex = &sync.Mutex{}
 
 func resourceRoute() *schema.Resource {
 	return &schema.Resource{
@@ -55,15 +60,31 @@ func resourceRoute() *schema.Resource {
 func resourceCreateRoute(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
 	apiClient := meta.(pritunl.Client)
 
+	serverId := d.Get("server_id").(string)
+
+	serverLock := getOrCreateServerLock(serverId)
+
+	serverLock.Lock()
+	defer serverLock.Unlock()
+
+	routes, err := apiClient.GetRoutesByServer(serverId)
+	if err != nil {
+		return diag.FromErr(err)
+	}
+
+	for _, route := range routes {
+		if route.Network == d.Get("network") {
+			return diag.FromErr(fmt.Errorf("Route already exist with same network %s on %s server", d.Get("network"), serverId))
+		}
+	}
+
 	routeData := map[string]interface{}{
 		"network": d.Get("network"),
 		"comment": d.Get("comment"),
 		"nat":     d.Get("nat"),
 	}
 
-	serverId := d.Get("server_id").(string)
-
-	err := apiClient.StopServer(serverId)
+	err = apiClient.StopServer(serverId)
 	if err != nil {
 		return diag.FromErr(err)
 	}
@@ -146,6 +167,11 @@ func resourceUpdateRoute(ctx context.Context, d *schema.ResourceData, meta inter
 
 	serverId := d.Get("server_id").(string)
 
+	serverLock := getOrCreateServerLock(serverId)
+
+	serverLock.Lock()
+	defer serverLock.Unlock()
+
 	routes, err := apiClient.GetRoutesByServer(serverId)
 	if err != nil {
 		return diag.FromErr(err)
@@ -189,6 +215,11 @@ func resourceDeleteRoute(ctx context.Context, d *schema.ResourceData, meta inter
 
 	serverId := d.Get("server_id").(string)
 
+	serverLock := getOrCreateServerLock(serverId)
+
+	serverLock.Lock()
+	defer serverLock.Unlock()
+
 	err := apiClient.StopServer(serverId)
 	if err != nil {
 		return diag.FromErr(err)
@@ -205,4 +236,17 @@ func resourceDeleteRoute(ctx context.Context, d *schema.ResourceData, meta inter
 	}
 	return nil
 
+}
+
+func getOrCreateServerLock(serverID string) *sync.Mutex {
+	serverLocksMutex.Lock()
+	defer serverLocksMutex.Unlock()
+
+	lock, exists := serverLocks[serverID]
+	if !exists {
+		lock = &sync.Mutex{}
+		serverLocks[serverID] = lock
+	}
+
+	return lock
 }
