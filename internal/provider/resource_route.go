@@ -52,7 +52,7 @@ func resourceRoute() *schema.Resource {
 		UpdateContext: resourceUpdateRoute,
 		DeleteContext: resourceDeleteRoute,
 		Importer: &schema.ResourceImporter{
-			StateContext: resourceImportRoute,
+			StateContext: resourcePrepareImportRoute,
 		},
 	}
 }
@@ -104,8 +104,7 @@ func resourceCreateRoute(ctx context.Context, d *schema.ResourceData, meta inter
 	return resourceReadRoute(ctx, d, meta)
 }
 
-func resourceImportRoute(ctx context.Context, d *schema.ResourceData, meta interface{}) ([]*schema.ResourceData, error) {
-	apiClient := meta.(pritunl.Client)
+func resourcePrepareImportRoute(ctx context.Context, d *schema.ResourceData, meta interface{}) ([]*schema.ResourceData, error) {
 
 	re := regexp.MustCompile(`server/([a-z0-9]+)/route/([a-z0-9]+)`)
 	matches := re.FindAllStringSubmatch(d.Id(), -1)
@@ -122,23 +121,10 @@ func resourceImportRoute(ctx context.Context, d *schema.ResourceData, meta inter
 		routeId = match[2]
 	}
 
-	routes, err := apiClient.GetRoutesByServer(serverId)
-	if err != nil {
-		return nil, err
-	}
-	for _, route := range routes {
-		if route.GetID() == routeId {
-			d.Set("server_id", serverId)
-			d.Set("network", route.Network)
-			d.Set("comment", route.Comment)
-			d.Set("nat", route.Nat)
-			d.SetId(routeId)
+	d.Set("server_id", serverId)
+	d.SetId(routeId)
 
-			return []*schema.ResourceData{d}, nil
-		}
-	}
-
-	return nil, errors.New("Route not found.")
+	return []*schema.ResourceData{d}, nil
 }
 
 func resourceReadRoute(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
