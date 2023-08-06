@@ -636,7 +636,10 @@ func resourceCreateServer(ctx context.Context, d *schema.ResourceData, meta inte
 	}
 
 	if d.Get("status").(string) == pritunl.ServerStatusOnline {
-		err = apiClient.StartServer(d.Id())
+		startServerOperation := func() error {
+			return apiClient.StartServer(d.Id())
+		}
+		err = retryOperation(startServerOperation)
 		if err != nil {
 			return diag.Errorf("Error on starting server: %s", err)
 		}
@@ -815,7 +818,10 @@ func resourceUpdateServer(ctx context.Context, d *schema.ResourceData, meta inte
 	}
 
 	// Stop server before applying any change
-	err = apiClient.StopServer(d.Id())
+	stopServerOperation := func() error {
+		return apiClient.StopServer(d.Id())
+	}
+	err = retryOperation(stopServerOperation)
 	if err != nil {
 		return diag.Errorf("Error on stopping server: %s", err)
 	}
@@ -866,7 +872,10 @@ func resourceUpdateServer(ctx context.Context, d *schema.ResourceData, meta inte
 	}
 
 	if shouldServerBeStarted {
-		err = apiClient.StartServer(d.Id())
+		startServerOperation := func() error {
+			return apiClient.StartServer(d.Id())
+		}
+		err = retryOperation(startServerOperation)
 		if err != nil {
 			return diag.Errorf("Error on starting server: %s", err)
 		}

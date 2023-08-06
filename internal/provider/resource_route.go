@@ -84,7 +84,10 @@ func resourceCreateRoute(ctx context.Context, d *schema.ResourceData, meta inter
 		"nat":     d.Get("nat"),
 	}
 
-	err = apiClient.StopServer(serverId)
+	stopServerOperation := func() error {
+		return apiClient.StopServer(serverId)
+	}
+	err = retryOperation(stopServerOperation)
 	if err != nil {
 		return diag.FromErr(err)
 	}
@@ -94,7 +97,10 @@ func resourceCreateRoute(ctx context.Context, d *schema.ResourceData, meta inter
 		return diag.FromErr(err)
 	}
 
-	err = apiClient.StartServer(serverId)
+	startServerOperation := func() error {
+		return apiClient.StartServer(serverId)
+	}
+	err = retryOperation(startServerOperation)
 	if err != nil {
 		return diag.FromErr(err)
 	}
@@ -173,7 +179,10 @@ func resourceUpdateRoute(ctx context.Context, d *schema.ResourceData, meta inter
 				route.Comment = v.(string)
 			}
 
-			err = apiClient.StopServer(serverId)
+			stopServerOperation := func() error {
+				return apiClient.StopServer(serverId)
+			}
+			err := retryOperation(stopServerOperation)
 			if err != nil {
 				return diag.FromErr(err)
 			}
@@ -183,7 +192,10 @@ func resourceUpdateRoute(ctx context.Context, d *schema.ResourceData, meta inter
 				return diag.FromErr(err)
 			}
 
-			err = apiClient.StartServer(serverId)
+			startServerOperation := func() error {
+				return apiClient.StartServer(serverId)
+			}
+			err = retryOperation(startServerOperation)
 			if err != nil {
 				return diag.FromErr(err)
 			}
@@ -206,7 +218,10 @@ func resourceDeleteRoute(ctx context.Context, d *schema.ResourceData, meta inter
 	serverLock.Lock()
 	defer serverLock.Unlock()
 
-	err := apiClient.StopServer(serverId)
+	stopServerOperation := func() error {
+		return apiClient.StopServer(serverId)
+	}
+	err := retryOperation(stopServerOperation)
 	if err != nil {
 		return diag.FromErr(err)
 	}
@@ -216,7 +231,10 @@ func resourceDeleteRoute(ctx context.Context, d *schema.ResourceData, meta inter
 		return diag.FromErr(err)
 	}
 
-	err = apiClient.StartServer(serverId)
+	startServerOperation := func() error {
+		return apiClient.StartServer(serverId)
+	}
+	err = retryOperation(startServerOperation)
 	if err != nil {
 		return diag.FromErr(err)
 	}
