@@ -74,7 +74,7 @@ func resourceCreateRoute(ctx context.Context, d *schema.ResourceData, meta inter
 
 	for _, route := range routes {
 		if route.Network == d.Get("network") {
-			return diag.FromErr(fmt.Errorf("Route already exist with same network %s on %s server", d.Get("network"), serverId))
+			return diag.FromErr(fmt.Errorf("Route already exist with same network %s on %s server. Route ID %s", d.Get("network"), serverId, route.GetID()))
 		}
 	}
 
