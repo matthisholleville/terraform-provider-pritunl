@@ -111,6 +111,7 @@ func resourceCreateRoute(ctx context.Context, d *schema.ResourceData, meta inter
 }
 
 func resourcePrepareImportRoute(ctx context.Context, d *schema.ResourceData, meta interface{}) ([]*schema.ResourceData, error) {
+	apiClient := meta.(pritunl.Client)
 
 	re := regexp.MustCompile(`server/([a-z0-9]+)/route/([a-z0-9]+)`)
 	matches := re.FindAllStringSubmatch(d.Id(), -1)
@@ -125,6 +126,24 @@ func resourcePrepareImportRoute(ctx context.Context, d *schema.ResourceData, met
 	for _, match := range matches {
 		serverId = match[1]
 		routeId = match[2]
+	}
+
+	routes, err := apiClient.GetRoutesByServer(serverId)
+	if err != nil {
+		return nil, errors.New("Unable to get routes for this serverId.")
+	}
+
+	for _, route := range routes {
+		if route.GetID() == routeId {
+			d.Set("network", route.Network)
+			d.Set("comment", route.Comment)
+			d.Set("nat", route.Nat)
+			break
+		}
+	}
+
+	if d.Get("network") == "" {
+		return nil, errors.New("The routeId is not present on this server.")
 	}
 
 	d.Set("server_id", serverId)
