@@ -8,8 +8,6 @@ description: |-
 
 # pritunl Provider
 
-
-
 ## Example Usage
 
 ```terraform
