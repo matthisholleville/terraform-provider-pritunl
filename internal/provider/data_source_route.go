@@ -48,6 +48,10 @@ func dataSourceRouteRead(ctx context.Context, d *schema.ResourceData, meta inter
 
 	route, err := SearchRouteByNetwork(meta, serverID, network)
 	if err != nil {
+		if errors.Is(err, errors.New("could not find a route with specified server_id and network")) {
+			d.SetId("")
+			return nil
+		}
 		return diag.FromErr(err)
 	}
 
