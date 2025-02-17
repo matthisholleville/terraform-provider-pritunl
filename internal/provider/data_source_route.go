@@ -9,6 +9,8 @@ import (
 	"github.com/matthisholleville/terraform-pritunl-provider/internal/pritunl"
 )
 
+var errRouteNotFound = errors.New("route not found")
+
 func dataSourceRoute() *schema.Resource {
 	return &schema.Resource{
 		Description: "Use this data source to get information about a specific route in a Pritunl server.",
@@ -48,11 +50,8 @@ func dataSourceRouteRead(ctx context.Context, d *schema.ResourceData, meta inter
 
 	route, err := SearchRouteByNetwork(meta, serverID, network)
 	if err != nil {
-		if errors.Is(err, errors.New("could not find a route with specified server_id and network")) {
-			d.SetId("")
-			return nil
-		}
-		return diag.FromErr(err)
+		d.SetId("")
+		return nil
 	}
 
 	d.SetId(route.GetID())
@@ -78,5 +77,5 @@ func SearchRouteByNetwork(meta interface{}, serverID, network string) (pritunl.R
 		}
 	}
 
-	return pritunl.Route{}, errors.New("could not find a route with specified server_id and network")
+	return pritunl.Route{}, nil
 }
